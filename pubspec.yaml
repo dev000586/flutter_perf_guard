@@ -1,0 +1,49 @@
+name: flutter_perf_guard
+description: >
+  Enterprise-grade Flutter performance analysis, debugging, profiling, and 
+  optimization toolkit for production-scale applications. Includes frame 
+  analysis, jank detection, memory leak detection, rebuild tracking, 
+  Image cache analyzing, Network request profiling, 
+  real-time dashboards, and exportable profiling reports.
+version: 1.0.0
+homepage: https://github.com/youorg/flutter_perf_guard
+repository: https://github.com/youorg/flutter_perf_guard
+issue_tracker: https://github.com/youorg/flutter_perf_guard/issues
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Async utilities
+  async: ^2.13.1
+  # Serialization
+  json_annotation: ^4.12.0
+  # Equatable for value equality
+  equatable: ^2.0.8
+  # Logging
+  logging: ^1.3.0
+  # Path utilities
+  path: ^1.9.1
+  # Synchronized access
+  synchronized: ^3.4.0+1
+  # Stream utilities
+  rxdart: ^0.28.0
+  # Intl for formatting
+  intl: ^0.20.2
+  # path_provider for accessing path
+  path_provider: ^2.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.6
+  json_serializable: ^6.7.1
+  mockito: ^5.4.2
+  fake_async: ^1.3.1
+
+flutter:
+  uses-material-design: true
