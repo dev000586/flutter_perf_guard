@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'rebuild_location.dart';
 
 /// Metrics tracking rebuild frequency and cost for a specific widget.
 class RebuildMetrics extends Equatable {
@@ -32,10 +33,21 @@ class RebuildMetrics extends Equatable {
   /// Timestamp of most recent rebuild.
   final DateTime lastSeen;
 
-  const RebuildMetrics({
-    required this.widgetType,
-    required this.rebuildCount, required this.totalRebuildTime, required this.averageRebuildTime, required this.treeDepth, required this.hasRepaintBoundary, required this.triggeredBySetState, required this.firstSeen, required this.lastSeen, this.widgetKey,
-  });
+  /// Debug-mode location info (file, line, ancestor path).
+  final RebuildLocation location;
+
+  const RebuildMetrics(
+      {required this.widgetType,
+      required this.rebuildCount,
+      required this.totalRebuildTime,
+      required this.averageRebuildTime,
+      required this.treeDepth,
+      required this.hasRepaintBoundary,
+      required this.triggeredBySetState,
+      required this.firstSeen,
+      required this.lastSeen,
+      this.widgetKey,
+      this.location = const RebuildLocation()});
 
   /// Rebuilds per second during the sampling window.
   double get rebuildsPerSecond {
@@ -58,6 +70,7 @@ class RebuildMetrics extends Equatable {
         'triggeredBySetState': triggeredBySetState,
         'rebuildsPerSecond': rebuildsPerSecond,
         'isExcessive': isExcessive,
+        'location': location.toJson(),
         'firstSeen': firstSeen.toIso8601String(),
         'lastSeen': lastSeen.toIso8601String(),
       };
@@ -81,6 +94,7 @@ class RebuildMetrics extends Equatable {
       triggeredBySetState: triggeredBySetState,
       firstSeen: firstSeen,
       lastSeen: at,
+      location: location,
     );
   }
 

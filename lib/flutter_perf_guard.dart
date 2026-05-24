@@ -4,6 +4,7 @@
 /// and optimization toolkit for production-scale Flutter applications.
 library flutter_perf_guard;
 
+export 'src/analysis/grader/performance_grader.dart';
 // ─── Analysis Results ────────────────────────────────────────────────────────
 export 'src/analysis/jank/jank_report.dart';
 export 'src/analysis/layout/layout_report.dart';
@@ -18,12 +19,18 @@ export 'src/core/events/jank_event.dart';
 export 'src/core/events/memory_event.dart';
 export 'src/core/events/performance_event.dart';
 export 'src/core/events/rebuild_event.dart';
+export 'src/export/formatters/text_formatter.dart';
 // ─── Export / Reports ────────────────────────────────────────────────────────
 export 'src/export/profiling_report.dart';
+export 'src/export/report_exporter.dart' show ReportFormat;
 export 'src/export/report_exporter.dart';
+export 'src/monitoring/async/async_profiler.dart';
+export "src/monitoring/image/image_cache_analyzer.dart";
+export 'src/monitoring/network/network_profiler.dart';
 // ─── Profiling Models ────────────────────────────────────────────────────────
 export 'src/profiling/frame/frame_metrics.dart';
 export 'src/profiling/memory/memory_metrics.dart';
+export 'src/profiling/rebuild/rebuild_location.dart';
 export 'src/profiling/rebuild/rebuild_metrics.dart';
 // ─── Public API Layer ────────────────────────────────────────────────────────
 export 'src/public_api/benchmark_runner.dart';

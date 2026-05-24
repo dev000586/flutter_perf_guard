@@ -10,6 +10,20 @@ Profile during:
 
 ---
 
+## Quick Reference — Which Guide to Read
+
+| Problem | Guide section |
+|---------|--------------|
+| App feels laggy / low FPS | Frame Profiling |
+| Memory growing over time | Memory Profiling |
+| Widget rebuilding too much | Rebuild Tracking |
+| API calls are slow | Network Profiling |
+| Async operations taking long | Async Operation Profiling |
+| Images loading slowly | Image Cache Analysis |
+| Screen transitions are slow | Navigation Performance |
+| App takes long to start | Startup Analysis |
+| Want a letter grade summary | `doc/diagnostics_guide.md` → Performance Grades |
+
 ## Frame Profiling
 
 ### Setup
@@ -309,6 +323,131 @@ await myAnalyticsClient.send(map);
 ```
 
 ---
+
+## Network Profiling
+
+Enable in config:
+
+```dart
+await PerfGuard.initialize(
+  config: const PerfGuardConfig(enableNetworkProfiler: true),
+);
+```
+
+All HTTP requests made via `dart:io` `HttpClient` (including `http` package,
+`dio`, `Dio`) are automatically intercepted. No code changes needed in your
+API layer.
+
+### Reading network data
+
+```dart
+final np = PerfGuard.instance.networkProfiler;
+
+// All recorded requests
+for (final r in np.records) {
+  print('${r.method} ${r.url} → ${r.statusCode} in ${r.durationMs}ms');
+}
+
+// Only slow requests (> 1 second)
+for (final r in np.slowRequests) {
+  print('SLOW: ${r.url} took ${r.durationMs.toStringAsFixed(0)}ms');
+}
+
+// Only failed requests
+for (final r in np.failedRequests) {
+  print('FAILED: ${r.url} status=${r.statusCode} error=${r.error}');
+}
+
+// Plain English summary
+print(np.plainEnglishSummary);
+// ⚠ 2 slow request(s) (> 1s)
+//    GET https://api.example.com/products → 2340ms
+//    Fix: Cache this response or paginate results
+```
+
+### What counts as slow?
+
+Requests taking > 1000ms are flagged. This threshold is not currently
+configurable but will be in a future release.
+
+---
+
+## Async Operation Profiling
+
+Wrap any operation you want to measure:
+
+```dart
+final ap = PerfGuard.instance.asyncProfiler;
+
+// Async operation
+final user = await ap.track('load_user_profile', () async {
+  return await userRepository.getUser(id);
+});
+
+// Sync operation  
+final sorted = ap.trackSync('sort_product_list', () {
+  return products..sort((a, b) => a.price.compareTo(b.price));
+});
+```
+
+The name you provide appears directly in the report:
+ASYNC OPERATIONS
+──────────────────────────────────────────────────── 
+⚠ 1 slow operation(s) (> 500ms)
+load_user_profile: 1240ms
+Fix: Show loading indicator or cache the result
+
+### Good naming conventions
+
+```dart
+// ✅ Descriptive names make reports readable
+ap.track('fetch_product_list_page_1', ...)
+ap.track('parse_json_response', ...)
+ap.track('write_to_local_db', ...)
+
+// ❌ Vague names make reports useless
+ap.track('task', ...)
+ap.track('operation', ...)
+```
+
+---
+
+## Image Cache Analysis
+
+No setup needed — `ImageCacheAnalyzer` reads Flutter's built-in
+`PaintingBinding.instance.imageCache` on every export.
+
+### Reading cache data
+
+```dart
+final ia = PerfGuard.instance.imageCacheAnalyzer;
+final snap = ia.snapshot();
+
+print('Cached: ${snap.currentCount} images');
+print('Size: ${snap.currentSizeMb.toStringAsFixed(1)}MB / ${snap.maxSizeMb.toStringAsFixed(1)}MB');
+print('Usage: ${(snap.usagePercent * 100).toStringAsFixed(0)}%');
+print(ia.plainEnglishSummary);
+```
+
+### Reducing cache pressure
+
+```dart
+// Option 1: Reduce max cache size
+ia.trimCacheTo(50 * 1024 * 1024); // 50MB max
+
+// Option 2: Clear on low memory
+@override
+void didReceiveMemoryWarning() {
+  ia.clearCache();
+}
+
+// Option 3: Decode images at display size (most effective)
+Image.network(
+  url,
+  cacheWidth: 200,   // decode at 200px, not full resolution
+  cacheHeight: 200,
+)
+```
 
 ## Profiling Checklist
 

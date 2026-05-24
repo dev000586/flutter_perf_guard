@@ -533,7 +533,7 @@
       "name": "flutter_perf_guard",
       "rootUri": "../",
       "packageUri": "lib/",
-      "languageVersion": "3.0"
+      "languageVersion": "3.6"
     }
   ],
   "generator": "pub",

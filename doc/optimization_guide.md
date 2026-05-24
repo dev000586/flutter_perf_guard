@@ -388,3 +388,89 @@ for (final s in suggestions) {
   print('[${s['severity'].toUpperCase()}] ${s['message']}');
 }
 ```
+
+---
+
+## Using the Performance Grader
+
+The `PerformanceGrader` gives you a single letter that summarises each
+area so you know where to focus:
+
+```dart
+final grader = PerformanceGrader(
+  frameProfiler: PerfGuard.instance.frameProfiler,
+  memoryProfiler: PerfGuard.instance.memoryProfiler,
+  rebuildTracker: PerfGuard.instance.rebuildTracker,
+  navigationTracker: PerfGuard.instance.navigationTracker,
+);
+
+print('Frames:   ${grader.gradeFrames().label}  ${grader.frameSummary()}');
+print('Memory:   ${grader.gradeMemory().label}  ${grader.memorySummary()}');
+print('Rebuilds: ${grader.gradeRebuilds().label}  ${grader.rebuildSummary()}');
+print('Overall:  ${grader.overallGrade.label}');
+```
+
+**Fix lowest grade first.** If rebuilds are F and frames are B, fix
+the excessive rebuilds — they are almost certainly causing the frame issues too.
+
+---
+
+## Network Optimization
+
+When `NetworkProfiler` flags a slow request:
+⚠ GET https://api.example.com/products → 2340ms
+
+**Fix 1: Cache the response**
+```dart
+// Simple in-memory cache
+final _cache = <String, dynamic>{};
+
+Future<List<Product>> getProducts() async {
+  if (_cache.containsKey('products')) {
+    return _cache['products'];
+  }
+  final result = await api.fetchProducts();
+  _cache['products'] = result;
+  return result;
+}
+```
+
+**Fix 2: Paginate**
+```dart
+// Don't load all items at once
+Future<List<Product>> getProducts({int page = 1, int limit = 20}) =>
+    api.fetchProducts(page: page, limit: limit);
+```
+
+**Fix 3: Show loading state immediately**
+```dart
+// Don't block UI — show loading indicator
+@override
+void initState() {
+  super.initState();
+  // Don't await here — let build() run first
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    final data = await ap.track('load_products', api.getProducts);
+    if (mounted) setState(() => _products = data);
+  });
+}
+```
+
+---
+
+## Async Optimization
+
+When `AsyncProfiler` flags a slow operation:
+⚠ parse_large_json: 890ms
+
+**Move to background isolate:**
+```dart
+// Before — blocks UI thread
+final data = ap.trackSync('parse_json', () => jsonDecode(response));
+
+// After — runs in separate isolate
+final data = await ap.track(
+  'parse_json',
+  () => compute(jsonDecode, response),
+);
+```
