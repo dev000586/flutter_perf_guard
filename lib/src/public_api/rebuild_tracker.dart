@@ -1,8 +1,11 @@
 import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+
 import '../core/bus/diagnostics_event_bus.dart';
 import '../core/events/rebuild_event.dart';
+import '../profiling/rebuild/rebuild_location.dart';
 import '../profiling/rebuild/rebuild_metrics.dart';
 import 'perf_guard_config.dart';
 
@@ -97,6 +100,7 @@ class RebuildTracker {
             triggeredBySetState: true,
             firstSeen: at,
             lastSeen: at,
+            location: RebuildLocation.capture(element)    //File name may not be available by latest flutter sdk.
           );
 
     _metricsMap[key] = metrics;

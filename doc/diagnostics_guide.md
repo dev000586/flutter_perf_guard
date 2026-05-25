@@ -265,3 +265,143 @@ developer.Timeline.finishSync();
 
 Open DevTools → Performance tab → Timeline while the overlay is active to
 see PerfGuard events interleaved with Flutter framework events.
+
+---
+
+## Performance Grades
+
+Every export now includes an A–F grade per category:
+
+| Grade | Meaning |
+|-------|---------|
+| 🟢 A | Excellent — no action needed |
+| 🟢 B | Good — minor issues, monitor |
+| 🟡 C | Fair — noticeable issues, investigate |
+| 🟠 D | Poor — users are affected, fix soon |
+| 🔴 F | Critical — severe issue, fix immediately |
+
+### Grade thresholds
+
+**Frames:**
+
+| Grade | FPS | Jank Rate |
+|-------|-----|-----------|
+| A | ≥ 58 | < 1% |
+| B | ≥ 55 | < 3% |
+| C | ≥ 45 | < 8% |
+| D | ≥ 30 | < 15% |
+| F | < 30 | ≥ 15% |
+
+**Memory (heap usage):**
+
+| Grade | Heap % |
+|-------|--------|
+| A | < 50% |
+| B | < 65% |
+| C | < 80% |
+| D | < 90% |
+| F | ≥ 90% |
+
+**Rebuilds (excessive widget count):**
+
+| Grade | Excessive Widgets |
+|-------|------------------|
+| A | 0 |
+| B | 1 |
+| C | 2–3 |
+| D | 4–6 |
+| F | > 6 |
+
+---
+
+## Widget File Locations in Reports
+
+In **debug mode**, the export includes the exact file and line where
+each excessively rebuilding widget is defined:
+
+**REBUILD** — ProductCard rebuilding 94x/sec
+
+**File**: lib/screens/home_screen.dart:142
+
+**Location**: HomeScreen > Column > ListView > ProductCard
+→ Add const or use ValueListenableBuilder
+
+In **profile/release mode**, file info is unavailable:
+
+**REBUILD** — ProductCard rebuilding 94x/sec
+File: run in debug mode to see file location
+→ Add const or use ValueListenableBuilder
+
+
+**How to use this:**
+1. Run your app in debug mode (`flutter run`)
+2. Reproduce the slow interaction
+3. Export the report
+4. Open the file at the line shown
+5. Apply the suggested fix
+
+---
+
+## Reading the Text Report
+
+The `.txt` report has 3 parts:
+
+**Part 1 — Metrics** (Frames, Memory, Image Cache, Rebuilds, Navigation,
+Network, Async): raw numbers with plain English summary per section.
+
+**Part 2 — What To Fix**: numbered list of actionable items, sorted by
+severity. Each item includes the file location (debug mode) and a specific
+one-line fix.
+
+**Part 3 — Footer**: generation timestamp and package version.
+
+The "What To Fix" section is the most useful for beginners — ignore
+everything else and just work through that list top to bottom.
+
+---
+
+## Accessing New Profilers Directly
+
+### NetworkProfiler
+
+```dart
+// Access the profiler
+final np = PerfGuard.instance.networkProfiler;
+
+// Read summaries
+print(np.plainEnglishSummary);
+
+// Iterate records
+for (final r in np.records) {
+  if (r.isSlow) print('Slow: ${r.url} — ${r.durationMs}ms');
+  if (r.hasFailed) print('Failed: ${r.url} — ${r.statusCode}');
+}
+```
+
+### AsyncProfiler
+
+```dart
+final ap = PerfGuard.instance.asyncProfiler;
+
+// Wrap your calls
+final data = await ap.track('load_dashboard', () => api.getDashboard());
+
+// Read summary
+print(ap.plainEnglishSummary);
+```
+
+### ImageCacheAnalyzer
+
+```dart
+final ia = PerfGuard.instance.imageCacheAnalyzer;
+
+// Get a point-in-time snapshot
+final snap = ia.snapshot();
+print('Cache: ${snap.currentSizeMb}MB / ${snap.maxSizeMb}MB');
+
+// Plain English
+print(ia.plainEnglishSummary);
+
+// Fix high pressure
+ia.trimCacheTo(50 * 1024 * 1024); // 50MB cap
+```

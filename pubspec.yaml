@@ -6,12 +6,12 @@ description: >
   Image cache analyzing, Network request profiling, 
   real-time dashboards, and exportable profiling reports.
 version: 1.0.0
-homepage: https://github.com/youorg/flutter_perf_guard
-repository: https://github.com/youorg/flutter_perf_guard
-issue_tracker: https://github.com/youorg/flutter_perf_guard/issues
+homepage: https://github.com/dev000586/flutter_perf_guard/blob/master/example/lib/main.dart
+repository: https://github.com/dev000586/flutter_perf_guard
+issue_tracker: https://github.com/dev000586/flutter_perf_guard/issues
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: '>=3.6.0 <4.0.0'
   flutter: ">=3.10.0"
 
 dependencies:
@@ -35,6 +35,8 @@ dependencies:
   intl: ^0.20.2
   # path_provider for accessing path
   path_provider: ^2.1.5
+  # web for web support
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:

@@ -119,7 +119,7 @@ void main() {
       test('async benchmark runs correctly', () async {
         final suite = BenchmarkSuite(name: 'AsyncSuite')
           ..addAsync('async_noop', () async {
-            await Future.delayed(const Duration(microseconds: 500));
+            await Future.delayed(const Duration(milliseconds: 1));
           });
 
         const runner = BenchmarkRunner(

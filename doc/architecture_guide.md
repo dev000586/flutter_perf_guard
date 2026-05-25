@@ -250,20 +250,36 @@ PerfGuard
 ├── MemoryProfiler
 │   └── DiagnosticsEventBus (emit)
 ├── RebuildTracker
+│   ├── DiagnosticsEventBus (emit)
+│   └── RebuildLocation (captures per widget, debug only)
+├── NetworkProfiler                       
+│   └── HttpOverrides (global intercept)
+├── AsyncProfiler                         
 │   └── DiagnosticsEventBus (emit)
+├── ImageCacheAnalyzer                    
+│   └── PaintingBinding.imageCache (read-only)
 ├── TimelineRecorder
 │   └── DiagnosticsEventBus (subscribe)
 ├── PerformanceMonitor
 │   └── DiagnosticsEventBus (subscribe)
+├── PerformanceGrader                     
+│   ├── FrameProfiler (read-only)
+│   ├── MemoryProfiler (read-only)
+│   ├── RebuildTracker (read-only)
+│   └── NavigationTracker (read-only)
 ├── StartupAnalyzer
-│   └── DiagnosticsEventBus (emit)
 ├── NavigationTracker (NavigatorObserver)
-│   └── DiagnosticsEventBus (emit)
 └── ReportExporter
-    ├── FrameProfiler (read-only)
-    ├── MemoryProfiler (read-only)
-    └── RebuildTracker (read-only)
+├── FrameProfiler (read-only)
+├── MemoryProfiler (read-only)
+├── RebuildTracker (read-only)
+├── NavigationTracker (read-only)       
+├── NetworkProfiler (read-only)    
+├── AsyncProfiler (read-only)      
+├── ImageCacheAnalyzer (read-only) 
+├── PerformanceGrader (computed)   
+└── TextFormatter (export)        
 ```
 
-No circular dependencies. Dependency arrows always point inward
-(toward lower layers).
+No circular dependencies. All new components follow the same rule:
+profilers emit or expose data, the exporter reads from them.
