@@ -100,7 +100,7 @@ class RebuildTracker {
             triggeredBySetState: true,
             firstSeen: at,
             lastSeen: at,
-            location: RebuildLocation.capture(element)
+            location: RebuildLocation.capture(element)    //File name may not be available by latest flutter sdk.
           );
 
     _metricsMap[key] = metrics;

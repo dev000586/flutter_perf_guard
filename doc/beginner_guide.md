@@ -144,7 +144,7 @@ OVERALL GRADE : 🟡 C
 WHAT TO FIX
 ════════════════════════════════════════════════════════════
 1. REBUILD — ProductCard rebuilding 94x/sec
-   File: lib/screens/home_screen.dart:142
+   File: lib/screens/home_screen.dart:142 //If available
    Location: HomeScreen > Column > ListView > ProductCard
    → Add const or use ValueListenableBuilder
 

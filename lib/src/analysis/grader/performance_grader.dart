@@ -123,6 +123,7 @@ class PerformanceGrader {
 
     final top = excessive.first;
     final rate = top.rebuildsPerSecond.toStringAsFixed(0);
+    //file name will show only if available and possible
     final file = top.location.fileInfo != null
         ? '\n   File: ${top.location.fileInfo}'
         : '\n   Run in debug mode to see file location';

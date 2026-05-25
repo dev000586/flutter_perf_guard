@@ -30,10 +30,10 @@ class RebuildLocation {
       element.visitAncestorElements((ancestor) {
         final name = ancestor.widget.runtimeType.toString();
         // Skip private/internal Flutter framework widgets
-        if (!name.startsWith('_') && ancestors.length < 8) {
+        if (ancestors.length < 20) {
           ancestors.add(name);
         }
-        return ancestors.length < 8;
+        return ancestors.length < 20;
       });
     } catch (_) {
       // visitAncestorElements can throw if element is unmounted
