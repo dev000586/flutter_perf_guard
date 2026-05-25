@@ -155,7 +155,7 @@
       "name": "flutter",
       "rootUri": "file:///Users/dev/development/flutter/packages/flutter",
       "packageUri": "lib/",
-      "languageVersion": "3.9"
+      "languageVersion": "3.10"
     },
     {
       "name": "flutter_lints",
@@ -167,7 +167,7 @@
       "name": "flutter_test",
       "rootUri": "file:///Users/dev/development/flutter/packages/flutter_test",
       "packageUri": "lib/",
-      "languageVersion": "3.9"
+      "languageVersion": "3.10"
     },
     {
       "name": "glob",
@@ -279,7 +279,7 @@
     },
     {
       "name": "meta",
-      "rootUri": "file:///Users/dev/.pub-cache/hosted/pub.dev/meta-1.17.0",
+      "rootUri": "file:///Users/dev/.pub-cache/hosted/pub.dev/meta-1.18.0",
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },
@@ -413,7 +413,7 @@
       "name": "sky_engine",
       "rootUri": "file:///Users/dev/development/flutter/bin/cache/pkg/sky_engine",
       "packageUri": "lib/",
-      "languageVersion": "3.9"
+      "languageVersion": "3.10"
     },
     {
       "name": "source_gen",
@@ -471,7 +471,7 @@
     },
     {
       "name": "test_api",
-      "rootUri": "file:///Users/dev/.pub-cache/hosted/pub.dev/test_api-0.7.10",
+      "rootUri": "file:///Users/dev/.pub-cache/hosted/pub.dev/test_api-0.7.11",
       "packageUri": "lib/",
       "languageVersion": "3.7"
     },
@@ -537,8 +537,8 @@
     }
   ],
   "generator": "pub",
-  "generatorVersion": "3.11.5",
+  "generatorVersion": "3.12.0",
   "flutterRoot": "file:///Users/dev/development/flutter",
-  "flutterVersion": "3.41.9",
+  "flutterVersion": "3.44.0",
   "pubCache": "file:///Users/dev/.pub-cache"
 }
