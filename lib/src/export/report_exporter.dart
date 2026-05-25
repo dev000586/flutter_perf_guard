@@ -64,8 +64,8 @@ class ReportExporter {
       'rebuild': _rebuildTracker.toJson(),
       'navigation': _navigationTracker.toJson(),
       'imageCache': _imageCacheAnalyzer.toJson(),
-      if (_networkProfiler != null) 'network': _networkProfiler!.toJson(),
-      if (_asyncProfiler != null) 'async': _asyncProfiler!.toJson(),
+      if (_networkProfiler != null) 'network': _networkProfiler.toJson(),
+      if (_asyncProfiler != null) 'async': _asyncProfiler.toJson(),
       'optimizationSuggestions': _generateSuggestions(),
     };
   }
@@ -143,7 +143,7 @@ class ReportExporter {
     }
 
     if (_networkProfiler != null) {
-      for (final r in _networkProfiler!.slowRequests.take(3)) {
+      for (final r in _networkProfiler.slowRequests.take(3)) {
         suggestions.add({
           'category': 'network',
           'grade': 'D',
