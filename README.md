@@ -16,14 +16,18 @@
 | **Frame Analysis** | Per-frame build/raster timing, rolling FPS, worst-frame detection |
 | **Jank Detection** | Consecutive-jank detection, dropped-frame counting, jank events |
 | **Memory Profiling** | Heap sampling, leak detection via linear regression, GC tracking |
-| **Rebuild Tracking** | Widget rebuild frequency, unnecessary rebuild detection, hot-widget ranking |
+| **Rebuild Tracking** | Widget rebuild frequency, file name + line (debug), ancestor path, hot-widget ranking |
+| **Network Profiling** | HTTP request timing, status, size, slow/failed detection via HttpOverrides |
+| **Async Profiling** | Named async operation tracking with slow/failed detection |
+| **Image Cache Analysis** | Cache hit rate, size pressure, plain English fix suggestions |
+| **Performance Grading** | A–F grade per category with plain English summaries |
 | **Real-time Dashboard** | Full-screen diagnostics dashboard with frames, memory, rebuilds, event log |
 | **Performance Overlay** | Lightweight HUD with FPS, build/raster times, memory, jank alerts |
 | **Timeline Recording** | Bounded circular-buffer timeline with JSON export |
 | **Benchmark Engine** | Statistical micro-benchmark runner (mean, median, p95, p99, stddev) |
 | **Startup Analysis** | App-start to interactive milestone tracking |
 | **Navigation Tracking** | Route transition duration monitoring |
-| **Report Export** | JSON snapshot export with automated optimization suggestions |
+| **Report Export** | Human-readable `.txt` report + JSON snapshot with grades and file locations |
 | **Event Bus** | Centralized typed `DiagnosticsEventBus` with RxDart streams |
 
 ---
@@ -49,9 +53,10 @@ void main() async {
     config: const PerfGuardConfig(
       enableFrameProfiler: true,
       enableMemoryProfiler: true,
-      enableRebuildTracker: true,
+      enableRebuildTracker: true,     // debug mode only
       enableJankDetector: true,
-      enableDashboard: true,
+      enableNetworkProfiler: true,    // intercepts all HTTP requests
+      enableAsyncProfiler: true,      // track named async operations
       verbose: true,
     ),
   );
@@ -60,7 +65,27 @@ void main() async {
 }
 ```
 
-### 2. Add the Overlay HUD
+### 2. Track async operations (optional)
+
+```dart
+// Wrap any async call to measure it:
+final products = await PerfGuard.instance.asyncProfiler.track(
+  'fetch_products',
+  () => api.getProducts(),
+);
+```
+
+### 3. Export a readable report
+
+```dart
+// Exports a human-readable .txt file to app documents directory
+final path = await PerfGuard.instance.exportReport(
+  format: ReportFormat.text,
+);
+print('Report saved to: $path');
+```
+
+### 4. Add the Overlay HUD
 
 Wrap your root widget (or any subtree) with `PerfGuardOverlay`:
 
@@ -75,7 +100,7 @@ MaterialApp(
 )
 ```
 
-### 3. Open the Dashboard
+### 5. Open the Dashboard
 
 ```dart
 Navigator.of(context).push(
@@ -83,7 +108,7 @@ Navigator.of(context).push(
 );
 ```
 
-### 4. Subscribe to Events
+### 6. Subscribe to Events
 
 ```dart
 final bus = DiagnosticsEventBus.instance;
@@ -242,6 +267,66 @@ for (final r in results) {
 }
 ```
 
+### NetworkProfiler
+
+```dart
+final np = PerfGuard.instance.networkProfiler;
+
+np.records           // List<NetworkRequestRecord> — all requests
+np.slowRequests      // requests taking > 1 second
+np.failedRequests    // requests with status >= 400 or errors
+np.plainEnglishSummary  // human-readable summary string
+```
+
+### AsyncProfiler
+
+```dart
+final ap = PerfGuard.instance.asyncProfiler;
+
+// Track any async operation by name:
+final result = await ap.track('load_user', () => fetchUser(id));
+
+// Track synchronous expensive work:
+final sorted = ap.trackSync('sort_products', () => products.sort(...));
+
+ap.slowOperations      // List<AsyncOperationRecord>
+ap.failedOperations    // List<AsyncOperationRecord>
+ap.plainEnglishSummary // human-readable summary
+ap.reset()
+```
+
+### ImageCacheAnalyzer
+
+```dart
+final ia = PerfGuard.instance.imageCacheAnalyzer;
+
+final snap = ia.snapshot();
+snap.currentCount      // int — cached image count
+snap.currentSizeMb     // double — cache size in MB
+snap.usagePercent      // double — 0.0–1.0
+ia.plainEnglishSummary // human-readable summary
+ia.trimCacheTo(50 * 1024 * 1024); // trim to 50MB
+ia.clearCache();
+```
+
+### PerformanceGrader
+
+```dart
+final grader = PerformanceGrader(
+  frameProfiler: PerfGuard.instance.frameProfiler,
+  memoryProfiler: PerfGuard.instance.memoryProfiler,
+  rebuildTracker: PerfGuard.instance.rebuildTracker,
+  navigationTracker: PerfGuard.instance.navigationTracker,
+);
+
+grader.gradeFrames()    // PerformanceGrade.A / B / C / D / F
+grader.gradeMemory()
+grader.gradeRebuilds()
+grader.overallGrade     // worst category grade
+grader.frameSummary()   // "✅ Excellent — 59.8 FPS, no jank detected"
+grader.rebuildSummary() // "❌ ProductCard rebuilding 94x/sec\n   File: lib/screens/home_screen.dart:142"
+```
+
 ---
 
 ## Navigation Tracking
@@ -283,17 +368,27 @@ flutter_perf_guard/
 │       ├── profiling/                   # Data Models
 │       │   ├── frame/frame_metrics.dart
 │       │   ├── memory/memory_metrics.dart
-│       │   └── rebuild/rebuild_metrics.dart
+│       │   └── rebuild/
+│       │       ├── rebuild_metrics.dart
+│       │       └── rebuild_location.dart
 │       ├── monitoring/                  # Specialized Monitors
 │       │   ├── startup/startup_analyzer.dart
 │       │   └── navigation/navigation_tracker.dart
+│       │   ├── network/network_profiler.dart 
+│       │   ├── async/async_profiler.dart      
+│       │   └── image/image_cache_analyzer.dart 
 │       ├── analysis/                    # Analysis Reports
+│       │   ├── grader/performance_grader.dart
 │       │   ├── jank/jank_report.dart
 │       │   ├── repaint/repaint_report.dart
 │       │   └── layout/layout_report.dart
 │       ├── export/                      # Report Generation
 │       │   ├── profiling_report.dart
 │       │   └── report_exporter.dart
+│       │   ├── file_writer.dart               
+│       │   ├── file_writer_web.dart           
+│       │   └── formatters/
+│       │       └── text_formatter.dart        
 │       └── benchmark/                   # Benchmark Engine
 │           ├── benchmark_suite.dart
 │           └── benchmark_result.dart
@@ -321,32 +416,95 @@ Typical overhead in profile mode: **< 1% CPU, < 2MB RAM**.
 
 ---
 
-## Export Format
+## Export Formats
+
+### Human-Readable Text (default)
+
+```dart
+final path = await PerfGuard.instance.exportReport(
+  format: ReportFormat.text,
+);
+```
+
+```text
+Output example:
+════════════════════════════════════════════════════════════
+flutter_perf_guard 
+Performance Report
+2024-06-10 10:30:00
+════════════════════════════════════════════════════════════
+OVERALL GRADE : 🟡 C
+FRAMES   🟢 A
+────────────────────────────────────────────────────────────
+Average FPS      : 59.8
+Jank Events      : 0
+Worst Frame      : 9ms  (budget: 16ms)
+Summary          : ✅ Excellent — 59.8 FPS, no jank detected
+MEMORY   🟢 A
+────────────────────────────────────────────────────────────
+Heap Used        : 42.1MB
+Heap Capacity    : 180.0MB
+Heap Usage       : 23%
+Summary          : ✅ Healthy — 42.1MB heap (23% used)
+REBUILDS   🔴 F
+────────────────────────────────────────────────────────────
+Top Offenders:
+
+ProductCard             94/sec ← EXCESSIVE
+File: lib/screens/home_screen.dart:142
+Path: HomeScreen > Column > ListView > ProductCard
+CounterWidget           58/sec ← EXCESSIVE
+File: lib/widgets/counter.dart:38
+
+WHAT TO FIX
+════════════════════════════════════════════════════════════
+
+REBUILD — ProductCard rebuilding 94x/sec
+File: lib/screens/home_screen.dart:142 //If available
+Location: HomeScreen > Column > ListView > ProductCard
+→ Add const or use ValueListenableBuilder
+REBUILD — CounterWidget rebuilding 58x/sec
+File: lib/widgets/counter.dart:38
+→ Add const or use ValueListenableBuilder
+════════════════════════════════════════════════════════════
+```
+
+### JSON (structured data)
+
+```dart
+final path = await PerfGuard.instance.exportReport(
+  format: ReportFormat.json,
+);
+```
 
 ```json
 {
-  "sessionId": "session_1718000000000",
-  "startTime": "2024-06-10T10:00:00.000Z",
-  "frame": {
-    "totalFrames": 1200,
-    "jankFrames": 12,
-    "jankRate": 0.01,
-    "currentFps": 59.8,
-    "averageFrameTimeMs": 7.2
-  },
-  "memory": {
-    "latestHeapMb": 42.1,
-    "peakHeapBytes": 55000000
+  "grade": {
+    "overall": "C",
+    "frames":   { "grade": "A", "summary": "✅ Excellent — 59.8 FPS" },
+    "memory":   { "grade": "A", "summary": "✅ Healthy — 42.1MB" },
+    "rebuilds": { "grade": "F", "summary": "❌ 2 widget(s) rebuilding excessively" }
   },
   "rebuild": {
-    "trackedWidgets": 45,
-    "excessiveRebuildCount": 2
+    "hotWidgets": [
+      {
+        "widgetType": "ProductCard",
+        "rebuildsPerSecond": 94.0,
+        "location": {
+          "fileInfo": "lib/screens/home_screen.dart:142",
+          "ancestorPath": "HomeScreen > Column > ListView > ProductCard"
+        }
+      }
+    ]
   },
   "optimizationSuggestions": [
     {
       "category": "rebuild",
-      "severity": "warning",
-      "message": "2 widget(s) rebuilding excessively. Use const constructors or memoization."
+      "widget": "ProductCard",
+      "rebuildsPerSec": "94",
+      "file": "lib/screens/home_screen.dart:142",
+      "location": "HomeScreen > Column > ListView > ProductCard",
+      "message": "ProductCard rebuilding 94x/sec — add const or use RepaintBoundary"
     }
   ]
 }

@@ -4,7 +4,10 @@ import 'package:flutter/foundation.dart';
 
 import '../core/bus/diagnostics_event_bus.dart';
 import '../export/report_exporter.dart';
+import '../monitoring/async/async_profiler.dart';
+import '../monitoring/image/image_cache_analyzer.dart';
 import '../monitoring/navigation/navigation_tracker.dart';
+import '../monitoring/network/network_profiler.dart';
 import '../monitoring/startup/startup_analyzer.dart';
 import 'frame_profiler.dart';
 import 'memory_profiler.dart';
@@ -38,6 +41,9 @@ class PerfGuard {
   late final StartupAnalyzer _startupAnalyzer;
   late final NavigationTracker _navigationTracker;
   late final ReportExporter _exporter;
+  late final NetworkProfiler _networkProfiler;
+  late final AsyncProfiler _asyncProfiler;
+  late final ImageCacheAnalyzer _imageCacheAnalyzer;
 
   bool _initialized = false;
   final Stopwatch _uptime = Stopwatch();
@@ -65,6 +71,9 @@ class PerfGuard {
   ReportExporter get exporter => _exporter;
 
   Duration get uptime => _uptime.elapsed;
+  NetworkProfiler get networkProfiler => _networkProfiler;
+  AsyncProfiler get asyncProfiler => _asyncProfiler;
+  ImageCacheAnalyzer get imageCacheAnalyzer => _imageCacheAnalyzer;
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────
 
@@ -105,6 +114,10 @@ class PerfGuard {
     _memoryProfiler = MemoryProfiler(config: config, bus: _bus);
     _rebuildTracker = RebuildTracker(config: config, bus: _bus);
     _timelineRecorder = TimelineRecorder(bus: _bus);
+    _networkProfiler = NetworkProfiler(bus: _bus);
+    _asyncProfiler = AsyncProfiler(bus: _bus);
+    _imageCacheAnalyzer = ImageCacheAnalyzer();
+
 
     // Analyzers
     _startupAnalyzer = StartupAnalyzer(bus: _bus);
@@ -115,9 +128,18 @@ class PerfGuard {
       frameProfiler: _frameProfiler,
       memoryProfiler: _memoryProfiler,
       rebuildTracker: _rebuildTracker,
+      navigationTracker: _navigationTracker,
+      networkProfiler: config.enableNetworkProfiler ? _networkProfiler : null,
+      asyncProfiler: config.enableAsyncProfiler ? _asyncProfiler : null,
     );
 
     // Start enabled modules
+    if (config.enableNetworkProfiler) {
+      NetworkProfiler.install(
+        profiler: _networkProfiler,
+      );
+    }
+
     if (config.enableFrameProfiler) {
       await _frameProfiler.start();
     }
@@ -186,8 +208,8 @@ class PerfGuard {
   }
 
   /// Exports the current profiling report to the configured [exportDirectory].
-  Future<String> exportReport({String? customPath}) async {
-    return _exporter.exportSnapshot(customPath: customPath);
+  Future<String> exportReport({String? customPath, ReportFormat format = ReportFormat.text}) async {
+    return _exporter.exportSnapshot(customPath: customPath, format: format);
   }
 
   void _log(String message) {

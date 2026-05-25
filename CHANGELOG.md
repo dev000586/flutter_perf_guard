@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Core Infrastructure
 - `DiagnosticsEventBus` – centralized RxDart `PublishSubject`-backed event bus
-  with typed streams (`frameEvents`, `memoryEvents`, `rebuildEvents`, `jankEvents`,
-  `criticalEvents`)
+  with typed streams (`frameEvents`, `memoryEvents`, `rebuildEvents`,
+  `jankEvents`, `criticalEvents`)
 - `PerformanceEvent` abstract base class with `id`, `timestamp`, `source`,
   `severity` fields
 - `EventSeverity` enum (`info`, `warning`, `critical`)
@@ -48,13 +48,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `memoryCriticalThreshold`
 
 #### Rebuild Tracking
-- `RebuildTracker` – debug-only instrumentation via `debugOnRebuildDirtyWidget`
+- `RebuildTracker` – debug-only instrumentation via
+  `debugOnRebuildDirtyWidget`
 - `RebuildMetrics` with rebuild count, total/average time, rebuild rate,
   `hasRepaintBoundary`, `triggeredBySetState`
 - `RebuildEvent` with `isUnnecessary` detection heuristic
 - Hot widget ranking (top 20 by rebuild count)
 - Excessive rebuild detection (> 60 rebuilds/s)
 - Automatic pruning of old widget records
+
+#### Widget Location Tracking
+- `RebuildLocation` – captures file name, line number, and full ancestor path
+  for rebuilding widgets (debug mode only)
+- `RebuildMetrics.location` field automatically captured on first rebuild
+- Ancestor path collection via `visitAncestorElements`
+- Debug-only file extraction support
+- Release/profile mode fallback note:
+  `"run in debug mode to see file location"`
 
 #### Timeline Recording
 - `TimelineRecorder` – subscribes to all events and maintains circular buffer
@@ -64,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Benchmark Engine
 - `BenchmarkSuite` with `add()` (sync) and `addAsync()` methods
-- `BenchmarkEntry` supporting both sync and async bodies
+- `BenchmarkEntry` supporting sync and async bodies
 - `BenchmarkRunner` with configurable warmup and measured run counts
 - `BenchmarkResult` with mean, median, p95, p99, min, max, stddev, ops/s
 - `runAll()` for multi-suite execution
@@ -74,35 +84,101 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `StartupAnalyzer` with milestone tracking:
   `markAppStart`, `markFirstFrame`, `markNavigatorReady`,
   `markDataLoaded`, `markInteractive`
-- `timeToFirstFrame` and `timeToInteractive` accessors
+- `timeToFirstFrame`
+- `timeToInteractive`
 
 #### Navigation Tracking
 - `NavigationTracker` extends `NavigatorObserver`
 - Records push/pop/replace transitions with duration
 - `isSlow` flag for transitions > 300ms
 
+#### Network Request Profiling
+- `NetworkProfiler` – hooks into `HttpOverrides.global`
+  to intercept app HTTP traffic
+- Records URL, method, status code, duration, response size,
+  timestamp, and errors
+- `slowRequests` (> 1 second)
+- `failedRequests` (status ≥ 400 or thrown errors)
+- Human-readable summaries with optimization suggestions
+- Optional enablement via
+  `PerfGuardConfig(enableNetworkProfiler: true)`
+
+#### Async Operation Profiling
+- `AsyncProfiler` – tracks named sync/async operations
+- `track()` and `trackSync()` wrappers
+- Records duration, timestamps, and failures
+- Slow operation detection via configurable threshold
+- Human-readable summaries with optimization suggestions
+
+#### Image Cache Analysis
+- `ImageCacheAnalyzer` – reads
+  `PaintingBinding.instance.imageCache`
+- Reports:
+    - current image count
+    - live image count
+    - cache size
+    - usage percentage
+- `trimCacheTo(int maxBytes)`
+- `clearCache()`
+- Included in exports automatically
+
+#### Performance Grading
+- `PerformanceGrader` – grades categories A–F with emoji indicators
+- Categories:
+    - Frames
+    - Memory
+    - Rebuilds
+    - Navigation
+- Overall grade derived from worst category
+- Human-readable summaries:
+    - `frameSummary()`
+    - `memorySummary()`
+    - `rebuildSummary()`
+    - `navigationSummary()`
+
 #### Visualization
-- `PerfGuardOverlay` – lightweight HUD widget showing FPS, build/raster times,
-  memory, and jank alerts. Renders via `CustomPainter`; zero widget rebuilds
-  outside of event receipt
-- `OverlayAlignment` enum (topLeft, topRight, bottomLeft, bottomRight)
-- `DiagnosticsDashboard` – full-screen Flutter widget with 4 tabs:
-  - **FRAMES** – stat cards + `CustomPainter` bar chart
-  - **MEMORY** – heap progress bar + `CustomPainter` line chart
-  - **REBUILDS** – sorted list with excessive rebuild highlighting
-  - **LOG** – scrollable event log
-- `_FrameChartPainter` – efficient `CustomPainter` with 16ms grid line
-- `_MemoryChartPainter` – area chart with fill gradient
+- `PerfGuardOverlay` – lightweight in-app HUD showing:
+    - FPS
+    - build/raster durations
+    - memory
+    - jank alerts
+- Overlay rendered via `CustomPainter`
+- `OverlayAlignment` enum:
+    - topLeft
+    - topRight
+    - bottomLeft
+    - bottomRight
+
+- `DiagnosticsDashboard` full-screen diagnostics UI with tabs:
+    - FRAMES
+    - MEMORY
+    - REBUILDS
+    - LOG
+
+- `_FrameChartPainter`
+- `_MemoryChartPainter`
 
 #### Export & Reporting
-- `ProfilingReport` value object with full session snapshot
-- `ReportExporter` – assembles snapshots from all profilers
-- Auto-generated `optimizationSuggestions` based on thresholds:
-  - Jank rate > 5% → RepaintBoundary suggestion
-  - Heap > 80% → memory investigation suggestion
-  - Excessive rebuilds → const/memoization suggestion
-- JSON export to configurable directory (native) or string return (web)
+- `ProfilingReport` full-session snapshot model
+- `ReportExporter`
+- JSON export support
+- Plain-text `.txt` report generation
+- `ReportFormat` enum:
+    - `text`
+    - `json`
+- Optimization suggestion generation:
+    - repaint boundary suggestions
+    - rebuild reduction suggestions
+    - memory pressure warnings
+- Rebuild reports include file locations and ancestor paths
 - `autoExportOnCritical` option
+
+#### File Writing
+- Conditional import pair:
+    - `file_writer.dart`
+    - `file_writer_web.dart`
+- Native export via `path_provider`
+- Web fallback returns content string directly
 
 #### Analysis Models
 - `JankReport` + `JankSegment`
@@ -110,33 +186,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LayoutReport` + `LayoutHotspot`
 
 #### Tests
-- Unit tests: `FrameMetrics`, `MemoryMetrics`, `RebuildMetrics`,
-  `DiagnosticsEventBus`, `BenchmarkResult`
-- Rendering tests: `PerfGuardOverlay` widget tests
-- Stress tests: event bus throughput (10,000 events),
-  concurrent subscribers, timeline buffer limits,
-  `BenchmarkRunner` correctness
+- Unit tests:
+    - `FrameMetrics`
+    - `MemoryMetrics`
+    - `RebuildMetrics`
+    - `DiagnosticsEventBus`
+    - `BenchmarkResult`
+
+- Rendering tests:
+    - `PerfGuardOverlay`
+
+- Stress tests:
+    - event bus throughput
+    - concurrent subscribers
+    - timeline buffer limits
+    - benchmark correctness
 
 #### Documentation
-- `README.md` with quick start, API reference, config table, export format
-- `doc/architecture_guide.md` – layer map, design patterns, dependency graph
-- `doc/profiling_guide.md` – frame, memory, rebuild, timeline, startup
-- `doc/optimization_guide.md` – concrete code fixes for each diagnostic type
-- `doc/benchmark_guide.md` – statistical best practices, regression testing
-- `doc/diagnostics_guide.md` – dashboard reading, event bus patterns,
-  per-issue diagnosis flows
+- `README.md`
+- `doc/architecture_guide.md`
+- `doc/profiling_guide.md`
+- `doc/optimization_guide.md`
+- `doc/benchmark_guide.md`
+- `doc/diagnostics_guide.md`
 
 #### Example App
-- Full example app demonstrating: overlay HUD, dashboard navigation,
-  jank simulation, memory pressure simulation, rebuild storm,
-  benchmark suite execution, report export
+- Overlay HUD demo
+- Dashboard navigation demo
+- Jank simulation
+- Memory pressure simulation
+- Rebuild storm simulation
+- Benchmark execution demo
+- Report export demo
 
 ### Platform Support
 - Android ✅
 - iOS ✅
-- Web ✅ (memory export returns JSON string)
+- Web ✅
 - macOS ✅
 - Windows ✅
 - Linux ✅
 
----

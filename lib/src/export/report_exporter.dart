@@ -1,20 +1,29 @@
 import 'dart:convert';
-import 'dart:io' show File, Directory;
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 
+import '../analysis/grader/performance_grader.dart';
+import '../monitoring/async/async_profiler.dart';
+import '../monitoring/image/image_cache_analyzer.dart';
+import '../monitoring/navigation/navigation_tracker.dart';
+import '../monitoring/network/network_profiler.dart';
 import '../public_api/frame_profiler.dart';
 import '../public_api/memory_profiler.dart';
 import '../public_api/rebuild_tracker.dart';
-import 'profiling_report.dart';
+import 'file_writer.dart'
+if (dart.library.html) 'file_writer_web.dart';
+import 'formatters/text_formatter.dart';
 
-/// Assembles [ProfilingReport]s from all active profilers and writes them
-/// to disk (native) or returns JSON strings (web).
+enum ReportFormat { json, text }
+
 class ReportExporter {
   final FrameProfiler _frameProfiler;
   final MemoryProfiler _memoryProfiler;
   final RebuildTracker _rebuildTracker;
+  final NavigationTracker _navigationTracker;
+  final NetworkProfiler? _networkProfiler;
+  final AsyncProfiler? _asyncProfiler;
+  final ImageCacheAnalyzer _imageCacheAnalyzer = ImageCacheAnalyzer();
 
   final DateTime _sessionStart = DateTime.now();
   late final String _sessionId;
@@ -23,107 +32,127 @@ class ReportExporter {
     required FrameProfiler frameProfiler,
     required MemoryProfiler memoryProfiler,
     required RebuildTracker rebuildTracker,
-  })  :
-        _frameProfiler = frameProfiler,
+    required NavigationTracker navigationTracker,
+    NetworkProfiler? networkProfiler,
+    AsyncProfiler? asyncProfiler,
+  })  : _frameProfiler = frameProfiler,
         _memoryProfiler = memoryProfiler,
-        _rebuildTracker = rebuildTracker {
-    _sessionId =
-        'session_${_sessionStart.millisecondsSinceEpoch}';
+        _rebuildTracker = rebuildTracker,
+        _navigationTracker = navigationTracker,
+        _networkProfiler = networkProfiler,
+        _asyncProfiler = asyncProfiler {
+    _sessionId = 'session_${_sessionStart.millisecondsSinceEpoch}';
   }
 
-  /// Builds the current snapshot as a raw JSON map.
   Future<Map<String, dynamic>> buildSnapshotMap() async {
+    final grader = PerformanceGrader(
+      frameProfiler: _frameProfiler,
+      memoryProfiler: _memoryProfiler,
+      rebuildTracker: _rebuildTracker,
+      navigationTracker: _navigationTracker,
+    );
+
     final now = DateTime.now();
     return {
       'sessionId': _sessionId,
       'startTime': _sessionStart.toIso8601String(),
       'endTime': now.toIso8601String(),
       'sessionDurationMs': now.difference(_sessionStart).inMilliseconds,
+      'grade': grader.toJson(),
       'frame': _frameProfiler.toJson(),
       'memory': _memoryProfiler.toJson(),
       'rebuild': _rebuildTracker.toJson(),
+      'navigation': _navigationTracker.toJson(),
+      'imageCache': _imageCacheAnalyzer.toJson(),
+      if (_networkProfiler != null) 'network': _networkProfiler.toJson(),
+      if (_asyncProfiler != null) 'async': _asyncProfiler.toJson(),
       'optimizationSuggestions': _generateSuggestions(),
     };
   }
 
-  /// Exports the current snapshot to a JSON file and returns the file path.
-  /// On web, returns the JSON string directly (file writes unsupported).
-  Future<String> exportSnapshot({String? customPath}) async {
-    final snapshot = await buildSnapshotMap();
-    final json = const JsonEncoder.withIndent('  ').convert(snapshot);
+  Future<String> exportSnapshot({
+    String? customPath,
+    ReportFormat format = ReportFormat.text,
+  }) async {
+    String content;
+    String extension;
 
-    if (kIsWeb) {
-      return json;
-    }
-
-    // Use app documents directory — always writable on all platforms.
-    // Falls back to customPath if explicitly provided.
-    final String dirPath;
-    if (customPath != null) {
-      dirPath = customPath;
+    if (format == ReportFormat.text) {
+      content = _buildTextReport();
+      extension = 'txt';
     } else {
-      final appDir = await getApplicationDocumentsDirectory();
-      dirPath = '${appDir.path}/perf_guard_reports';
+      final snapshot = await buildSnapshotMap();
+      content = const JsonEncoder.withIndent('  ').convert(snapshot);
+      extension = 'json';
     }
 
-    final directory = Directory(dirPath);
-    if (!directory.existsSync()) {
-      directory.createSync(recursive: true);
-    }
+    if (kIsWeb) return content;
 
-    final filename = 'perf_report_${DateTime.now().millisecondsSinceEpoch}.json';
-    final file = File('$dirPath/$filename');
-    await file.writeAsString(json);
-    return file.path;
+    return writeReportFile(content, customPath, extension: extension);
+  }
+
+  String _buildTextReport() {
+    return TextFormatter(
+      frameProfiler: _frameProfiler,
+      memoryProfiler: _memoryProfiler,
+      rebuildTracker: _rebuildTracker,
+      navigationTracker: _navigationTracker,
+      networkProfiler: _networkProfiler,
+      asyncProfiler: _asyncProfiler,
+      imageCacheAnalyzer: _imageCacheAnalyzer,
+    ).format();
   }
 
   List<Map<String, dynamic>> _generateSuggestions() {
     final suggestions = <Map<String, dynamic>>[];
+    final grader = PerformanceGrader(
+      frameProfiler: _frameProfiler,
+      memoryProfiler: _memoryProfiler,
+      rebuildTracker: _rebuildTracker,
+      navigationTracker: _navigationTracker,
+    );
 
-    // Frame suggestions
-    final jankRate = _frameProfiler.jankRate;
-    if (jankRate > 0.05) {
+    if (grader.gradeFrames().score <= 3) {
       suggestions.add({
         'category': 'frame',
-        'severity': 'critical',
-        'message': 'High jank rate (${(jankRate * 100).toStringAsFixed(1)}%). '
-            'Consider adding RepaintBoundary around expensive subtrees.',
-        'metric': 'jankRate',
-        'value': jankRate,
+        'grade': grader.gradeFrames().label,
+        'message': grader.frameSummary(),
       });
     }
 
-    // Memory suggestions
-    final latestMem = _memoryProfiler.latest;
-    if (latestMem != null && latestMem.heapUsagePercent > 0.80) {
+    if (grader.gradeMemory().score <= 3) {
       suggestions.add({
         'category': 'memory',
-        'severity': 'warning',
-        'message':
-            'Heap usage at ${(latestMem.heapUsagePercent * 100).toStringAsFixed(0)}%. '
-            'Check for retained objects or large image caches.',
-        'metric': 'heapUsagePercent',
-        'value': latestMem.heapUsagePercent,
+        'grade': grader.gradeMemory().label,
+        'message': grader.memorySummary(),
       });
     }
 
-    // Rebuild suggestions
-    final excessiveRebuilds = _rebuildTracker.excessiveRebuilds;
-    if (excessiveRebuilds.isNotEmpty) {
+    for (final m in _rebuildTracker.excessiveRebuilds.take(5)) {
       suggestions.add({
         'category': 'rebuild',
-        'severity': 'warning',
+        'grade': 'D',
+        'widget': m.widgetType,
+        'rebuildsPerSec': m.rebuildsPerSecond.toStringAsFixed(0),
+        'file': m.location.fileInfo ?? 'run in debug mode',
+        'location': m.location.ancestorPath ?? 'run in debug mode',
         'message':
-            '${excessiveRebuilds.length} widget(s) rebuilding excessively. '
-            'Top offender: ${excessiveRebuilds.first.widgetType}. '
-            'Use const constructors or memoization.',
-        'metric': 'excessiveRebuildCount',
-        'value': excessiveRebuilds.length,
-        'offenders': excessiveRebuilds
-            .take(5)
-            .map((m) => m.widgetType)
-            .toList(),
+        '${m.widgetType} rebuilding ${m.rebuildsPerSecond.toStringAsFixed(0)}x/sec'
+            ' — add const or use RepaintBoundary',
       });
+    }
+
+    if (_networkProfiler != null) {
+      for (final r in _networkProfiler.slowRequests.take(3)) {
+        suggestions.add({
+          'category': 'network',
+          'grade': 'D',
+          'url': r.url,
+          'durationMs': r.durationMs.toStringAsFixed(0),
+          'message':
+          '${r.method} ${r.url} took ${r.durationMs.toStringAsFixed(0)}ms — cache or paginate',
+        });
+      }
     }
 
     return suggestions;
